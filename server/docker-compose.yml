@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: "mysql://dokatel:${DB_PASSWORD}@db:3306/dokatel"
+      JWT_SECRET: "${JWT_SECRET}"
+      PORT: "4000"
+      CLIENT_URL: "${CLIENT_URL}"
+      HERMES_WEBHOOK_URL: "${HERMES_WEBHOOK_URL}"
+      N8N_WEBHOOK_SECRET: "${N8N_WEBHOOK_SECRET}"
+      WHATSAPP_ENABLED: "false"
+      WHATSAPP_SESSION_DIR: "./whatsapp-session"
+      WHATSAPP_BOT_PREFIX: "/agent"
+      WHATSAPP_ALLOW_GROUPS: "true"
+      WHATSAPP_LOG_LEVEL: "silent"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: dokatel
+      MYSQL_USER: dokatel
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  db_data:

@@ -15,6 +15,29 @@ const AGENTS = [
   { name: 'Community · Interne', type: 'INTERNAL', role: 'COMMUNITY', client: null, status: 'OFFLINE', tasksCount: 15, quality: 94, hoursSaved: 2, weeklyGoal: 25, systemPrompt: 'Tu gères les réseaux sociaux de Dokatel : calendrier éditorial, réponses, veille.' },
 ];
 
+// Employés de démo, avec leur numéro WhatsApp (format E.164 sans "+") — à
+// remplacer par vos vrais numéros. Chacun est ensuite assigné à un ou
+// plusieurs agents dans ASSIGNMENTS ci-dessous.
+const EMPLOYEES = [
+  { email: 'marie@dokatel.com', name: 'Marie', role: 'EMPLOYEE', phone: '33600000001' },
+  { email: 'julien@dokatel.com', name: 'Julien', role: 'EMPLOYEE', phone: '33600000002' },
+];
+
+// Mots-clés par client, utilisés par le routeur WhatsApp pour reconnaître de
+// quel client on parle dans un message libre.
+const CLIENT_KEYWORDS = {
+  'Startup Tech': 'startup tech,startuptech',
+  'E-commerce Pro': 'e-commerce pro,ecommerce pro,ecommerce',
+  'Restaurant Gourmet': 'restaurant gourmet,resto gourmet',
+  'FitLife App': 'fitlife,fit life',
+};
+
+// employé (email) → liste des noms d'agents qu'il a le droit d'utiliser.
+const ASSIGNMENTS = {
+  'marie@dokatel.com': ['Rédacteur · Client 1', 'Designer · Client 1', 'Rédacteur · Client 2'],
+  'julien@dokatel.com': ['Commercial · Client 1', 'Funnel · Client 2', 'Media Buyer · Client 3'],
+};
+
 async function main() {
   console.log('🌱 Seed démarré…');
 
@@ -25,10 +48,21 @@ async function main() {
     create: { email: 'admin@dokatel.com', password, name: 'Ahmed', role: 'ADMIN' },
   });
 
+  const employeeMap = {};
+  for (const emp of EMPLOYEES) {
+    const user = await prisma.user.upsert({
+      where: { email: emp.email },
+      update: { phone: emp.phone },
+      create: { email: emp.email, password, name: emp.name, role: emp.role, phone: emp.phone },
+    });
+    employeeMap[emp.email] = user;
+  }
+
   const clientMap = {};
   for (const name of ['Startup Tech', 'E-commerce Pro', 'Restaurant Gourmet', 'FitLife App']) {
     let c = await prisma.client.findFirst({ where: { name } });
-    if (!c) c = await prisma.client.create({ data: { name } });
+    if (!c) c = await prisma.client.create({ data: { name, keywords: CLIENT_KEYWORDS[name] } });
+    else if (!c.keywords) c = await prisma.client.update({ where: { id: c.id }, data: { keywords: CLIENT_KEYWORDS[name] } });
     clientMap[name] = c.id;
   }
 
@@ -47,6 +81,21 @@ async function main() {
     }
   }
 
+  // Assignations employé ↔ agent (droit d'utiliser cet agent).
+  for (const [email, agentNames] of Object.entries(ASSIGNMENTS)) {
+    const user = employeeMap[email];
+    for (const agentName of agentNames) {
+      const agent = await prisma.agent.findFirst({ where: { name: agentName } });
+      if (agent) {
+        await prisma.agentAssignment.upsert({
+          where: { userId_agentId: { userId: user.id, agentId: agent.id } },
+          update: {},
+          create: { userId: user.id, agentId: agent.id },
+        });
+      }
+    }
+  }
+
   // Conversation démo
   const redactor = await prisma.agent.findFirst({ where: { name: 'Rédacteur · Client 1' } });
   let conv = await prisma.conversation.findFirst({ where: { userId: admin.id, agentId: redactor.id } });
@@ -60,7 +109,10 @@ async function main() {
     });
   }
 
-  console.log('✅ Seed terminé ! Connexion : admin@dokatel.com / dokatel2026');
+  console.log('✅ Seed terminé !');
+  console.log('   Admin      : admin@dokatel.com / dokatel2026');
+  console.log('   Employés   : marie@dokatel.com, julien@dokatel.com / dokatel2026');
+  console.log('   Numéros WhatsApp de démo : 33600000001 (Marie), 33600000002 (Julien) — à remplacer par les vrais.');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());
