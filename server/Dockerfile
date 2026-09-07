@@ -16,5 +16,5 @@ RUN npx prisma generate
 
 EXPOSE 4000
 
-# Applique le schéma (pas de migrations committées, donc db push) puis démarre
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss --skip-generate && node src/index.js"]
+# Applique le schéma (pas de migrations committées, donc db push), seed, puis démarre
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss --skip-generate && node prisma/seed.js; node src/index.js"]
