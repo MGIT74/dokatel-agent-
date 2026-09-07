@@ -11,7 +11,7 @@ RUN npm install
 COPY . .
 
 # Baké au moment du build (Vite inline les variables VITE_* dans le bundle)
-ENV VITE_API_URL="https://dokatel-api-docker.1wp.site/api"
+ENV VITE_API_URL="https://api.dokatel.com/api"
 RUN npm run build
 
 # Serve stage
