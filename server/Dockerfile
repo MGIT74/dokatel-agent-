@@ -5,8 +5,8 @@ WORKDIR /app
 
 # git est nécessaire : certaines dépendances (ex: Baileys) résolvent des
 # sous-dépendances via des URLs git pendant npm install. Alpine ne l'a pas
-# par défaut.
-RUN apk add --no-cache git
+# par défaut. openssl est requis par le moteur Prisma (sinon crash au démarrage).
+RUN apk add --no-cache git openssl
 
 COPY package*.json ./
 RUN npm install --omit=dev
